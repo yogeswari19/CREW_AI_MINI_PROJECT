@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Blog Writer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .input-section {
+            margin-bottom: 30px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            color: #333;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .status-section.show {
+            display: block;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .status-processing {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .task-id {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 15px;
+            word-break: break-all;
+        }
+
+        .result-box {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #e0e0e0;
+            margin-top: 15px;
+            white-space: pre-wrap;
+            max-height: 500px;
+            overflow-y: auto;
+            line-height: 1.6;
+        }
+
+        .loading {
+            text-align: center;
+            color: #666;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            color: #721c24;
+            background: #f8d7da;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .refresh-btn {
+            background: #28a745;
+            margin-top: 10px;
+            padding: 10px;
+            font-size: 14px;
+        }
+
+        .refresh-btn:hover {
+            box-shadow: 0 10px 20px rgba(40, 167, 69, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 AI Blog Writer</h1>
+        <p class="subtitle">Generate SEO-optimized blogs powered by AI</p>
+
+        <div class="input-section">
+            <label for="topic">Enter Your Blog Topic</label>
+            <input 
+                type="text" 
+                id="topic" 
+                placeholder="e.g., The Future of Artificial Intelligence"
+                autocomplete="off"
+            >
+        </div>
+
+        <button id="generateBtn" onclick="generateBlog()">
+            Generate Blog
+        </button>
+
+        <div id="statusSection" class="status-section">
+            <div id="statusBadge" class="status-badge"></div>
+            <div id="taskId" class="task-id"></div>
+            <div id="result"></div>
+        </div>
+    </div>
+
+    <script>
+        let checkInterval;
+        const API_URL = 'http://127.0.0.1:8000';
+
+        async function generateBlog() {
+            const topic = document.getElementById('topic').value.trim();
+            
+            if (!topic) {
+                alert('Please enter a topic!');
+                return;
+            }
+
+            const btn = document.getElementById('generateBtn');
+            const statusSection = document.getElementById('statusSection');
+            const statusBadge = document.getElementById('statusBadge');
+            const taskIdDiv = document.getElementById('taskId');
+            const resultDiv = document.getElementById('result');
+
+            // Disable button and show loading
+            btn.disabled = true;
+            btn.textContent = 'Generating...';
+            statusSection.classList.add('show');
+            statusBadge.className = 'status-badge status-processing';
+            statusBadge.textContent = '⏳ Processing';
+            taskIdDiv.textContent = '';
+            resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Starting blog generation...</p></div>';
+
+            try {
+                // Call the API to create blog
+                const response = await fetch(`${API_URL}/create-blog?topic=${encodeURIComponent(topic)}`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to start blog generation');
+                }
+
+                const data = await response.json();
+                const taskId = data.task_id;
+
+                taskIdDiv.textContent = `Task ID: ${taskId}`;
+
+                // Start checking status
+                checkStatus(taskId);
+
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error-message">❌ Error: ${error.message}</div>`;
+                statusBadge.className = 'status-badge status-failed';
+                statusBadge.textContent = '❌ Failed';
+                btn.disabled = false;
+                btn.textContent = 'Generate Blog';
+            }
+        }
+
+        async function checkStatus(taskId) {
+            // Clear any existing interval
+            if (checkInterval) {
+                clearInterval(checkInterval);
+            }
+
+            const statusBadge = document.getElementById('statusBadge');
+            const resultDiv = document.getElementById('result');
+            const btn = document.getElementById('generateBtn');
+
+            checkInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`${API_URL}/blog-status/${taskId}`);
+                    const data = await response.json();
+
+                    if (data.status === 'completed') {
+                        clearInterval(checkInterval);
+                        statusBadge.className = 'status-badge status-completed';
+                        statusBadge.textContent = '✅ Completed';
+                        resultDiv.innerHTML = `<div class="result-box">${data.content}</div>`;
+                        btn.disabled = false;
+                        btn.textContent = 'Generate Another Blog';
+                    } else if (data.status === 'failed') {
+                        clearInterval(checkInterval);
+                        statusBadge.className = 'status-badge status-failed';
+                        statusBadge.textContent = '❌ Failed';
+                        resultDiv.innerHTML = `<div class="error-message">Error: ${data.error}</div>`;
+                        btn.disabled = false;
+                        btn.textContent = 'Try Again';
+                    } else {
+                        // Still processing
+                        resultDiv.innerHTML = `
+                            <div class="loading">
+                                <div class="spinner"></div>
+                                <p>Generating your blog... This may take 30-60 seconds.</p>
+                                <p style="font-size: 12px; color: #999; margin-top: 10px;">Status: ${data.status}</p>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    clearInterval(checkInterval);
+                    resultDiv.innerHTML = `<div class="error-message">❌ Error checking status: ${error.message}</div>`;
+                    btn.disabled = false;
+                    btn.textContent = 'Try Again';
+                }
+            }, 3000); // Check every 3 seconds
+        }
+
+        // Allow Enter key to submit
+        document.getElementById('topic').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                generateBlog();
+            }
+        });
+    </script>
+</body>
+</html>
